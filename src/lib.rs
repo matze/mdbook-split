@@ -6,7 +6,7 @@ use pulldown_cmark_to_cmark::cmark;
 use sha2::Digest;
 use std::path::PathBuf;
 
-/// A no-op preprocessor.
+/// A preprocessor to split h1 headings into individual chapters.
 pub struct Split;
 
 impl Split {
@@ -139,7 +139,7 @@ mod test {
                         {
                             "Chapter": {
                                 "name": "Chapter 1",
-                                "content": "# Chapter 1\n",
+                                "content": "# Chapter 1\n\n# Chapter 2\n",
                                 "number": [1],
                                 "sub_items": [],
                                 "path": "chapter_1.md",
@@ -154,12 +154,40 @@ mod test {
         let input_json = input_json.as_bytes();
 
         let (ctx, book) = mdbook::preprocess::CmdPreprocessor::parse_input(input_json).unwrap();
-        let expected_book = book.clone();
         let result = Split::new().run(&ctx, book);
         assert!(result.is_ok());
 
-        // The nop-preprocessor should not have made any changes to the book content.
-        let actual_book = result.unwrap();
-        assert_eq!(actual_book, expected_book);
+        let processed = result.unwrap();
+        assert_eq!(processed.sections.len(), 2);
+
+        let mut iter = processed.sections.iter();
+
+        let chapter_1 = iter.next().unwrap();
+        assert!(matches!(chapter_1, BookItem::Chapter(_)));
+
+        match chapter_1 {
+            BookItem::Chapter(chapter) => {
+                assert_eq!(chapter.name, "Chapter 1");
+                assert_eq!(
+                    chapter.path.as_ref().unwrap().to_str().unwrap(),
+                    "3178a647e0f2bcd284eaa96aab1750e61d3211c14aa60f2b45b6bdd27da6a159"
+                );
+            }
+            _ => {}
+        }
+
+        let chapter_2 = iter.next().unwrap();
+        assert!(matches!(chapter_2, BookItem::Chapter(_)));
+
+        match chapter_2 {
+            BookItem::Chapter(chapter) => {
+                assert_eq!(chapter.name, "Chapter 2");
+                assert_eq!(
+                    chapter.path.as_ref().unwrap().to_str().unwrap(),
+                    "11012a8623e958a2b46fc910d209280c789328566b5ab5b3652c71c1ccf7b4fb"
+                );
+            }
+            _ => {}
+        }
     }
 }
