@@ -3,8 +3,7 @@ use mdbook::book::{Book, BookItem, Chapter};
 use mdbook::preprocess::{Preprocessor, PreprocessorContext};
 use pulldown_cmark::{Event, HeadingLevel, Tag};
 use pulldown_cmark_to_cmark::cmark;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use sha2::Digest;
 use std::path::PathBuf;
 
 /// A no-op preprocessor.
@@ -39,17 +38,13 @@ fn to_chapter(events: Vec<Event>) -> Result<Chapter, Error> {
 
     let content = to_cmark(events)?;
 
-    let path = PathBuf::from(
-        thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(16)
-            .map(char::from)
-            .collect::<String>(),
-    );
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(&name);
+    let result = hasher.finalize();
 
     Ok(Chapter {
         name: name.to_string(),
-        path: Some(path),
+        path: Some(PathBuf::from(format!("{:x}", result))),
         content,
         ..Default::default()
     })
