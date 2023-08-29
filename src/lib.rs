@@ -51,7 +51,12 @@ fn to_chapter(events: Vec<Event>) -> Result<Chapter, Error> {
 }
 
 fn split_chapter(chapter: Chapter) -> Result<Vec<Chapter>, Error> {
-    let parser = pulldown_cmark::Parser::new(&chapter.content);
+    let mut options = pulldown_cmark::Options::empty();
+    options.insert(pulldown_cmark::Options::ENABLE_FOOTNOTES);
+    options.insert(pulldown_cmark::Options::ENABLE_SMART_PUNCTUATION);
+    options.insert(pulldown_cmark::Options::ENABLE_TABLES);
+
+    let parser = pulldown_cmark::Parser::new_ext(&chapter.content, options);
     let mut chapters = vec![];
     let mut events = vec![];
 
