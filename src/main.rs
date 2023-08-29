@@ -6,7 +6,7 @@ use semver::{Version, VersionReq};
 use std::io;
 use std::process;
 
-pub fn make_app() -> Command {
+fn make_app() -> Command {
     Command::new("nop-preprocessor")
         .about("A mdbook preprocessor which does precisely nothing")
         .subcommand(
@@ -19,12 +19,12 @@ pub fn make_app() -> Command {
 fn main() {
     let matches = make_app().get_matches();
 
-    let preprocessor = Split::new();
+    let preprocessor = Split {};
 
     if let Some(sub_args) = matches.subcommand_matches("supports") {
         handle_supports(&preprocessor, sub_args);
     } else if let Err(e) = handle_preprocessing(&preprocessor) {
-        eprintln!("{}", e);
+        eprintln!("{e}");
         process::exit(1);
     }
 }

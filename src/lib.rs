@@ -7,13 +7,8 @@ use sha2::Digest;
 use std::path::PathBuf;
 
 /// A preprocessor to split h1 headings into individual chapters.
+#[derive(Default)]
 pub struct Split;
-
-impl Split {
-    pub fn new() -> Split {
-        Split
-    }
-}
 
 fn is_h1(event: &Event) -> bool {
     matches!(event, Event::Start(Tag::Heading(HeadingLevel::H1, _, _)))
@@ -29,28 +24,27 @@ fn to_chapter(events: Vec<Event>) -> Result<Chapter, Error> {
     let name = &events
         .windows(2)
         .find_map(|window| is_h1(&window[0]).then_some(&window[1]))
-        .map(|event| match event {
+        .and_then(|event| match event {
             Event::Text(text) => Some(text.to_string()),
             _ => None,
         })
-        .flatten()
-        .unwrap_or_else(String::new);
+        .unwrap_or_default();
 
     let content = to_cmark(events)?;
 
     let mut hasher = sha2::Sha256::new();
-    hasher.update(&name);
+    hasher.update(name);
     let result = hasher.finalize();
 
     Ok(Chapter {
         name: name.to_string(),
-        path: Some(PathBuf::from(format!("{:x}", result))),
+        path: Some(PathBuf::from(format!("{result:x}"))),
         content,
         ..Default::default()
     })
 }
 
-fn split_chapter(chapter: Chapter) -> Result<Vec<Chapter>, Error> {
+fn split_chapter(chapter: &Chapter) -> Result<Vec<Chapter>, Error> {
     let mut options = pulldown_cmark::Options::empty();
     options.insert(pulldown_cmark::Options::ENABLE_FOOTNOTES);
     options.insert(pulldown_cmark::Options::ENABLE_SMART_PUNCTUATION);
@@ -86,9 +80,9 @@ impl Preprocessor for Split {
     fn run(&self, _ctx: &PreprocessorContext, book: Book) -> Result<Book, Error> {
         let mut new_book = Book::new();
 
-        for item in book.sections.into_iter() {
+        for item in book.sections {
             match item {
-                BookItem::Chapter(chapter) => {
+                BookItem::Chapter(ref chapter) => {
                     for item in split_chapter(chapter)? {
                         new_book.push_item(item);
                     }
@@ -154,7 +148,7 @@ mod test {
         let input_json = input_json.as_bytes();
 
         let (ctx, book) = mdbook::preprocess::CmdPreprocessor::parse_input(input_json).unwrap();
-        let result = Split::new().run(&ctx, book);
+        let result = Split::default().run(&ctx, book);
         assert!(result.is_ok());
 
         let processed = result.unwrap();
